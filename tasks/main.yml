@@ -1,0 +1,93 @@
+---
+# tasks file for ansible-role-vcenter-ovf
+
+- name: Remove any existing temporary mounts
+  ansible.posix.mount:
+    path: '{{ vcenter_tmp_mount_dir }}'
+    state: unmounted
+
+- name: Ensure temporary mount directory exists
+  ansible.builtin.file:
+    path: "{{ vcenter_tmp_mount_dir }}"
+    state: directory
+    mode: '0644'
+
+- name: Mount ISO image to temporary mount location
+  ansible.posix.mount:
+    path: '{{ vcenter_tmp_mount_dir }}'
+    src: "{{ vcenter_iso_folder }}/{{ vcenter_iso_file }}"
+    fstype: iso9660
+    state: mounted
+
+- name: Scan for VCSA OVA file name
+  ansible.builtin.find:
+    paths: '{{ vcenter_tmp_mount_dir }}/vcsa'
+    file_type: file
+    patterns: "*.ova"
+  register: vcsa_ova_directory_contents
+
+- name: Set VCSA OVA filename
+  ansible.builtin.set_fact:
+    vcsa_ova_filename: "{{ vcsa_ova_directory_contents.files[0].path.split('/')[-1] }}"
+    # Return: "VMware-vCenter-Server-Appliance-8.0.0.10200-21216066_OVF10.ova"
+  tags: set_fact
+
+- name: Set VCSA OVA build number
+  ansible.builtin.set_fact:
+    vcsa_ova_build: "{{ vcsa_ova_filename.split('-')[4] }}"
+    # Return: "8.0.0.10200"
+  tags: set_fact
+
+- name: Set VCSA OVA full path
+  ansible.builtin.set_fact:
+    vcsa_ova_fullpath: "{{ vcsa_ova_directory_contents.files[0].path }}"
+    # Return: "/tmp/iso/vcsa/VMware-vCenter-Server-Appliance-8.0.0.10200-21216066_OVF10.ova"
+  tags: set_fact
+
+# Get contents of the directory
+- name: Get files in {{ vcenter_iso_folder }}
+  ansible.builtin.command:
+    ls {{ vcenter_iso_folder }}
+  register: folder_contents
+  changed_when: false
+
+# Need to skip this if the file already exists
+- name: Extract VCSA OVA file from ISO
+  ansible.builtin.copy:
+    src: '{{ vcsa_ova_fullpath }}'
+    dest: '{{ vcenter_iso_folder }}'
+    mode: '0755'
+    remote_src: true
+  when: "vcsa_ova_filename not in folder_contents.stdout"
+
+- name: Ensure target OVF extraction directory exists
+  ansible.builtin.file:
+    path: "{{ vcenter_iso_folder }}/ovf_{{ vcsa_ova_build }}"
+    state: directory
+    mode: '0755'
+
+- name: Get files in target OVF extraction directory
+  ansible.builtin.command:
+    ls {{ vcenter_iso_folder }}/ovf_{{ vcsa_ova_build }}
+  register: ovf_dir_contents
+  changed_when: false
+
+- name: Set OVF output filename
+  ansible.builtin.set_fact:
+    ovf_output_filename: "vcsa_{{ vcsa_ova_build }}.ovf"
+
+# This requires OVFtool 4.5+ for vSphere 8.x components
+- name: Extract VCSA OVF files from OVA using OVFTool
+  ansible.builtin.command:
+    "{{ ovftool_bin_path }} --allowAllExtraConfig --skipManifestCheck \
+    {{ vcenter_iso_folder }}/{{ vcsa_ova_filename }} \
+    {{ vcenter_iso_folder }}/ovf_{{ vcsa_ova_build }}/{{ ovf_output_filename }}"
+  register: ovftool_output
+  when: ovf_output_filename not in ovf_dir_contents.stdout
+  changed_when: true
+  tags: task_copy_ovf
+
+- name: Remove any existing temporary mounts
+  ansible.posix.mount:
+    path: '{{ vcenter_tmp_mount_dir }}'
+    state: unmounted

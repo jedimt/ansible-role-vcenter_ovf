@@ -1,0 +1,14 @@
+---
+# vars file for ansible-role-vcenter-ovf
+
+# Location of the vCenter ISO file
+vcenter_iso_folder: '/home/aaron/files/vmware'
+
+# Name of the ISO file
+vcenter_iso_file: 'VMware-VCSA-all-8.0.0-21216066.iso'
+
+# Local filesystem mount point for the vCenter ISO image
+vcenter_tmp_mount_dir: '/tmp/iso'
+
+# OVFTool binary location
+ovftool_bin_path: '/home/aaron/files/vmware/ovftool/vmware-ovftool-lin/ovftool'
