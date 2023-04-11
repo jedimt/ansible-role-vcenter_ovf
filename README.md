@@ -46,7 +46,7 @@ Example Playbook
       tags: play_vcsa_ovf
 
       roles:
-        - { role: ansible-role-vcenter-ovf, vcenter_iso_file: "VMware-VCSA-all-8.0.0-21216066.iso" }
+        - { role: jedimt.vcenter_ovf, vcenter_iso_file: "VMware-VCSA-all-8.0.0-21216066.iso" }
 
 
 License

@@ -1,5 +1,5 @@
 ---
-# tasks file for ansible-role-vcenter-ovf
+# tasks file for jedimt.vcenter_ovf
 
 - name: Remove any existing temporary mounts
   ansible.posix.mount:
